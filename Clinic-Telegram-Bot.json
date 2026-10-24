@@ -1,0 +1,1018 @@
+{
+  "name": "My workflow 9",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -656,
+        -32
+      ],
+      "id": "ce9f783e-925c-48fb-a477-6d8a4b671cdf",
+      "name": "Telegram Trigger",
+      "webhookId": "6e11bb8b-5eb5-4ccc-a160-b0e1d5b2f9ca",
+      "credentials": {
+        "telegramApi": {
+          "id": "UweSFiZkghpPvARP",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Telegram Trigger').item.json.message.text }}",
+        "options": {
+          "systemMessage": "=# Role & Persona\nYou are a professional, empathetic, and highly efficient AI Virtual Receptionist for Top Clinic. Your primary responsibility is to assist patients with booking appointments, canceling appointments, and accurately answering clinic inquiries using internal tools.\n\n# Core Instructions\n1. Language & Tone: Always communicate with the user in the language they use (default to Arabic). Maintain a polite, welcoming, and empathetic tone.\n2. Step-by-Step Collection: NEVER ask multiple questions in a single message. Guide the user step-by-step to prevent confusion when collecting details.\n3. No Medical Advice: You are strictly an administrative assistant. Refuse to provide medical diagnoses or prescribe medications. Advise the user to consult a doctor instead.\n4. No Hallucinations: NEVER guess or assume prices, working hours, or doctor schedules. You MUST fetch this data using your RAG tool.\n\n# Available Tools\nYou have access to 5 tools (Use exact names):\n1. Clinic_Info_RAG: Retrieves clinic information (prices, working hours, doctor schedules, location).\n2. ID_Generate_Tool: Generates a unique 8-digit numeric ID for a new booking.\n3. Add_Appointment: Saves a new booking record in the database.\n4. Cancel_Appointment_Tool: Cancels or deletes an existing booking record.\n5. Send_Admin_Notification_Tool: Sends a notification message to the clinic management.\n\n# Workflows & Tool Execution Rules\n\n## 1. Answering Clinic Inquiries\n- Trigger: User asks about prices, schedules, specialties, or clinic details.\n- Action: Call [Clinic_Info_RAG] and reply based ONLY on the retrieved data.\n\n## 2. Booking a New Appointment\n- Step 1: Collect patient's Full Name.\n- Step 2: Collect patient's Phone Number.\n- Step 3: Collect required Doctor Name or Specialty (Dr. Mohamed for Internal Medicine - DoctorID 1, Dr. Menna for Pediatrics - DoctorID 2).\n- Step 4: Collect preferred Date and Time (Must be formatted as YYYY-MM-DD HH:mm:ss).\n- Step 5: Present a summary (Name, Phone, Doctor, Date, Time) and ask the user for explicit final confirmation.\n- Step 6: UPON USER CONFIRMATION:\n  1. Call [ID_Generate_Tool] to retrieve a new `customID`.\n  2. Call [Add_Appointment] passing (`customID`, `doctorId`, `patientName`, `patientPhone`, `appointmentDateTime`). Ensure `appointmentDateTime` is strictly formatted as \"YYYY-MM-DD HH:mm:ss\".\n  3. Call [Send_Admin_Notification_Tool] passing (`action: \"NEW_BOOKING\"`, `customID`, `patientName`, `patientPhone`, `appointmentDateTime`).\n- Step 7: Send a final confirmation message to the patient including their `customID`.\n\n## 3. Canceling an Appointment\n- Step 1: Ask for the Booking ID (customID) or registered Phone Number.\n- Step 2: Confirm cancellation intent: \"Are you sure you want to cancel appointment [Booking ID / Details]?\"\n- Step 3: UPON USER CONFIRMATION:\n  1. Call [Cancel_Appointment_Tool] passing the `bookingId` or `patientPhone`.\n  2. Call [Send_Admin_Notification_Tool] passing (`action: \"CANCELLATION\"`, `bookingId`, `patientName`).\n- Step 4: Inform the patient that their appointment has been successfully canceled.\n## Human Handoff Protocol\n\n### Trigger Conditions\nActivate this protocol if:\n- The user explicitly requests to speak with a human agent or receptionist.\n- You are unable to assist or resolve the user's request.\n\n### Mandatory Required Data\nBefore triggering escalation, you MUST collect the following 3 fields:\n1. **Full Name**\n2. **Phone Number**\n3. **Escalation Reason** (a brief summary of why they need human support)\n\n### Protocol Steps & Guardrails\n1. **Information Gathering:** Check current conversation context. If any of the 3 required fields are missing, politely ask the user to provide them.\n2. **Strict Lock:** DO NOT call the `convert_to_Human` or `Assistant_alert` tools under any circumstances until ALL 3 required fields are explicitly collected.\n3. **Execution:** Once all 3 pieces of information are gathered:\n   - Call the `convert_to_Human` tool passing the gathered details.\n   - Trigger the `Assistant_alert` tool to notify the human team.\n   - Inform the user politely that their request has been received and a human representative will reach out to them shortly.\n\n# Strict Negative Constraints (CRITICAL)\n1. NEVER break character. You are a real receptionist working at Top Clinic, NOT an AI or an automated script.\n2. NEVER mention technical terms such as: \"files\", \"stored data\", \"database\", \"RAG\", \"n8n\", \"system\", \"automated message\", \"customID\", or \"vector store\".\n3. NEVER send system disclosures or footers like \"This message was sent automatically\".\n\n# Handling Unavailable Specialties & Out-of-Scope Requests\nIf the user asks for a specialty, doctor, or service that is NOT offered at Top Clinic (e.g., Dentistry, Dermatology, Orthopedics, etc.):\n1. Acknowledge politely that this specific specialty is currently not available at Top Clinic.\n2. Smoothly present the specialties that ARE available:\n   - Internal Medicine & Diabetes (د. محمد - الباطنية والسكر)\n   - Pediatrics & Neonatology (د. منة - الأطفال وحديثي الولادة)\n3. Offer assistance in a natural human way without apologizing excessively or sounding robotic.\n\n- Example Arabic Response Tone:\n  \"للأسف تخصص الأسنان غير متوفر لدينا حالياً في Top Clinic. \n  التخصصات المتاحة حالياً بالعيادة هي:\n  - الباطنية والسكر (د. محمد)\n  - الأطفال وحديثي الولادة (د. منة)\n  \n  إذا تحب تحجز موعد في أحد التخصصات المتاحة أو عندك أي استفسار آخر، أنا تحت أمرك!\"\n\n# Fallback & Error Handling\n- If any tool returns an error or fails, apologize gracefully and advise the user to contact reception directly at 0106545000.\n- Do not trigger state-changing tools (Add_Appointment / Cancel_Appointment_Tool) without explicit user confirmation."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        512,
+        -32
+      ],
+      "id": "bafba252-730f-4fc7-9522-bf0cff5d708c",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1312,
+        -32
+      ],
+      "id": "fff42340-1727-4779-8761-8de45c9752ad",
+      "name": "Send a text message",
+      "webhookId": "fa337ec2-9c96-4da3-a84b-f70b77c870d7",
+      "credentials": {
+        "telegramApi": {
+          "id": "UweSFiZkghpPvARP",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Clinic_Info_RAG ",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {
+          "queryName": "match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        848,
+        288
+      ],
+      "id": "3428c3e1-a7d8-4703-b129-31b434b0e4bc",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "M3KsmI1U0CRwpWFr",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1zYZ0_Gp5Qx1zDE_85Fjr9dc2ksFuNkYb",
+          "mode": "list",
+          "cachedResultName": "RAG For Assistant AI",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1zYZ0_Gp5Qx1zDE_85Fjr9dc2ksFuNkYb"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        48,
+        624
+      ],
+      "id": "ebb23298-9bc8-431e-96d2-454be9c0ec12",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "wib7ijx9O5qpA4mP",
+          "name": "Google Drive account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "95bd8a18-cb96-48c5-bf30-d5c74f80eb02",
+              "name": "File_ID",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        272,
+        624
+      ],
+      "id": "04436576-1050-4be7-a009-fd58a22125fb",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.File_ID }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        496,
+        624
+      ],
+      "id": "9f831918-ec4d-4863-b285-6907fdf07cda",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "wib7ijx9O5qpA4mP",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        624
+      ],
+      "id": "4c207ba3-813e-468c-b4fd-ef2611510068",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {
+          "queryName": "match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        944,
+        640
+      ],
+      "id": "98f5164e-6d68-4b09-a958-30bc1456a25c",
+      "name": "Information_Uploder",
+      "credentials": {
+        "supabaseApi": {
+          "id": "M3KsmI1U0CRwpWFr",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "FileId",
+                "value": "={{ $('Edit Fields').item.json.File_ID }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        848
+      ],
+      "id": "9d81309c-579f-4580-aec7-4bbfd321b3aa",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "chunkOverlap": 150,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        1184,
+        1056
+      ],
+      "id": "7a9cfbb4-4073-4f33-a814-40db65a9187c",
+      "name": "Recursive Character Text Splitter"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-2-preview"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        992,
+        848
+      ],
+      "id": "7a7ba6d2-b935-4311-b911-03e5b5823cfc",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xbQR4a53oe1mPD1F",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-2-preview"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        960,
+        496
+      ],
+      "id": "e6b84b9e-6395-47ac-b0c4-65e7e5518f05",
+      "name": "Embeddings Google Gemini1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xbQR4a53oe1mPD1F",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=={{$('Telegram Trigger').item.json.message.chat.id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        144,
+        352
+      ],
+      "id": "c2237e77-db0f-4063-8ec1-33e68f9b16ad",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Get, add and update data in Database\n\n{customID} from {ID_Generated_Tool}",
+        "operation": "executeQuery",
+        "query": "INSERT INTO Appointments (BookingID, DoctorID, PatientName, PatientPhone, AppointmentDateTime, Status)\nVALUES (\n  '{{ $fromAI(\"customID\", \"The 8-digit booking ID\", \"string\") }}',\n  {{ $fromAI(\"doctorId\", \"The ID of the doctor\", \"number\") }},\n  N'{{ $fromAI(\"patientName\", \"Patient full name\", \"string\") }}',\n  '{{ $fromAI(\"patientPhone\", \"Patient phone number\", \"string\") }}',\n  '{{ $fromAI(\"appointmentDateTime\", \"Appointment Date and Time in YYYY-MM-DD HH:mm:ss format\", \"string\") }}',\n  'CONFIRMED'\n);\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSqlTool",
+      "typeVersion": 1.2,
+      "position": [
+        304,
+        368
+      ],
+      "id": "77bad7c2-e8df-4423-93ca-83ff777d1745",
+      "name": "Add_Appointment",
+      "credentials": {
+        "microsoftSql": {
+          "id": "j8fb12xmw3yYfQE4",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Use this tool to generate a unique 8-digit numeric ID for new clinic appointments or session tracking.",
+        "jsCode": "const now = new Date();\n\n// استخراج الوقت بتوقيت مصر المحلي بصيغة 24 ساعة بدقة (00 إلى 23)\nconst formatter = new Intl.DateTimeFormat('en-US', {\n  timeZone: 'Africa/Cairo',\n  hour: '2-digit',\n  minute: '2-digit',\n  hourCycle: 'h23'\n});\n\nconst parts = formatter.formatToParts(now);\nconst hours = parts.find(p => p.type === 'hour').value.padStart(2, '0');\nconst minutes = parts.find(p => p.type === 'minute').value.padStart(2, '0');\n\n// توليد 4 أرقام عشوائية (من 1000 إلى 9999)\nconst random4Digits = Math.floor(1000 + Math.random() * 9000);\n\n// دمج الرقم النهائي\nconst customID = `${random4Digits}${hours}${minutes}`;\n\n// إرجاع النتيجة كنص صريح (String) لحل خطأ n8n\nreturn String(customID);"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        448,
+        384
+      ],
+      "id": "6f84bec5-1aac-471c-bfae-17cd28b7a365",
+      "name": "ID_Generated_Tool"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Deleted form in database",
+        "operation": "executeQuery",
+        "query": "UPDATE Appointments\nSET Status = 'CANCELLED',\n    UpdatedAt = GETDATE()\nWHERE BookingID = '{{ $fromAI(\"bookingId\", \"The 8-digit booking ID to cancel. Required.\", \"string\") }}'\n   OR PatientPhone = '{{ $fromAI(\"patientPhone\", \"The patient phone number if booking ID is not provided.\", \"string\") }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSqlTool",
+      "typeVersion": 1.2,
+      "position": [
+        624,
+        368
+      ],
+      "id": "7073b6c0-a09f-42b2-a707-c474121c5795",
+      "name": "Cancel_Appointment_Tool",
+      "credentials": {
+        "microsoftSql": {
+          "id": "j8fb12xmw3yYfQE4",
+          "name": "Microsoft SQL account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "chatId": "7907396848",
+        "text": "={{ $fromAI(\"Massage_to_admin\", \"The formatted notification message sent to the admin summarizing the appointment details\", \"string\") }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegramTool",
+      "typeVersion": 1.2,
+      "position": [
+        816,
+        464
+      ],
+      "id": "fa1fd3a0-9c1c-4edc-b1d1-a311a8947d83",
+      "name": "Send_Admin_Notification_Tool",
+      "webhookId": "13a1bf6e-1b50-4494-81a3-b286262b6f9f",
+      "credentials": {
+        "telegramApi": {
+          "id": "UweSFiZkghpPvARP",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- 1. إنشاء السجل تلقائياً إذا لم يكن موجوداً\nIF NOT EXISTS (SELECT 1 FROM dbo.ChatSessions WHERE SessionID = '{{ $json.message.chat.id }}')\nBEGIN\n    INSERT INTO dbo.ChatSessions (SessionID, Mode, CreatedAt)\n    VALUES ('{{ $json.message.chat.id }}', 'AI', GETDATE());\nEND\n\n-- 2. إرجاع النمط الحالي للجلسة\nSELECT Mode \nFROM dbo.ChatSessions \nWHERE SessionID = '{{ $json.message.chat.id }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.2,
+      "position": [
+        96,
+        -48
+      ],
+      "id": "39ef09c9-40d9-4234-b14b-4526828d4be4",
+      "name": "Microsoft SQL",
+      "credentials": {
+        "microsoftSql": {
+          "id": "j8fb12xmw3yYfQE4",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.Mode }}",
+                    "rightValue": "AI",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "dd013e5d-2b5d-487e-a8e1-d54b1484a385"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "AI"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "868a69cf-f093-4ca2-a816-20456811fc8b",
+                    "leftValue": "={{ $json.Mode }}",
+                    "rightValue": "HUMAN",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Human"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        272,
+        -32
+      ],
+      "id": "3f3dae1d-5f22-4e9a-b616-a7e223652be4",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE dbo.ChatSessions\nSET \n    Mode = 'HUMAN',\n    PatientName = N'{{ $fromAI(\"patientName\", \"The full name of the patient\", \"string\") }}',\n    PhoneNumber = '{{ $fromAI(\"patientPhone\", \"The phone number provided by the patient\", \"string\") }}',\n    EscalationReason = N'{{ $fromAI(\"escalationReason\", \"The reason why the patient wants human support\", \"string\") }}',\n    UpdatedAt = GETDATE()\nWHERE SessionID = {{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSqlTool",
+      "typeVersion": 1.2,
+      "position": [
+        736,
+        368
+      ],
+      "id": "bdafc43f-f5e7-47a0-8443-fd1c7431787e",
+      "name": "convert_to_Human",
+      "credentials": {
+        "microsoftSql": {
+          "id": "j8fb12xmw3yYfQE4",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "7907396848",
+        "text": "=🚨 **طلب تحويل لموظف بشري (Human Escalation)**  👤 **الاسم:** {{ $fromAI(\"patientName\") }} 📞 **الهاتف:** {{ $fromAI(\"patientPhone\") }} 🆔 **Chat ID:** `{{ $('Telegram Trigger').item.json.message.chat.id }}`  ❓ **سبب التحويل:**  {{ $fromAI(\"escalationReason\") }}  💡 *للرد على المريض، قم بعمل Reply مباشر على هذه الرسالة.*",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegramTool",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        208
+      ],
+      "id": "b12697dd-f48d-4b31-b1a9-8100a189b268",
+      "name": "Asisstant_alert",
+      "webhookId": "4aa2a0ae-7ecb-4685-9f2d-d6ade11b2247",
+      "credentials": {
+        "telegramApi": {
+          "id": "UweSFiZkghpPvARP",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "=7907396848",
+        "text": "=📩 رسالة جديدة من العميل (ID:{{ $('Telegram Trigger').item.json.message.chat.id }} ): ---------------------------------- {{ $('Telegram Trigger').item.json.message.text }}---------------------------------- 💡 للرد على العميل: قم بعمل Reply على هذه الرسالة واكتب ردك.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        752,
+        -176
+      ],
+      "id": "e9b08643-eb50-4125-96d3-10c86a9afdb0",
+      "name": "Send a text message1",
+      "webhookId": "556d09d7-82d2-45aa-b1dc-dd536909911b",
+      "credentials": {
+        "telegramApi": {
+          "id": "UweSFiZkghpPvARP",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "59e0d4cb-e3d9-4b47-a483-104a12c8faf2",
+              "leftValue": "={{ $json.message.chat.id }}",
+              "rightValue": "={{7907396848}}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -352,
+        -176
+      ],
+      "id": "d8df1e9a-1da5-40db-ac45-8816663e7ee5",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const replyText = $json.message.reply_to_message.text || \"\";\nconst match = replyText.match(/ID:\\s*(\\d+)/);\nconst clientId = match ? match[1] : null;\n\nreturn [{\n  json: {\n    client_id: clientId,\n    text: $json.message.text\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        -272
+      ],
+      "id": "ac5ba0c1-c656-4c8a-879a-168b2a8cac9c",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "34de0d06-537e-4cd7-a0e8-d3eb67fdd894",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "close",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        96,
+        -272
+      ],
+      "id": "3441ad3e-57b2-44a1-9a45-bda6abd6810f",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE dbo.ChatSessions \nSET Mode = 'AI' \nWHERE SessionID = '{{ $('Code in JavaScript').item.json.client_id }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.2,
+      "position": [
+        320,
+        -368
+      ],
+      "id": "2a1d434b-ae3b-43f9-a16b-06b99c1ea869",
+      "name": "Microsoft SQL1",
+      "credentials": {
+        "microsoftSql": {
+          "id": "j8fb12xmw3yYfQE4",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Code in JavaScript').item.json.client_id }}",
+        "text": "={{ $('Code in JavaScript').item.json.text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        448,
+        -224
+      ],
+      "id": "2040ecb8-52f5-40c8-93de-2ec2f99b6a91",
+      "name": "Send a text message2",
+      "webhookId": "56a0f6bc-9cc8-4747-bd18-362e6c4b69dc",
+      "credentials": {
+        "telegramApi": {
+          "id": "UweSFiZkghpPvARP",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "openrouter/free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        352,
+        112
+      ],
+      "id": "d033afb3-a359-4f6f-8b2b-d9b030b4fe22",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "sZagUdWEA1c9nkPn",
+          "name": "OpenRouter account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Information_Uploder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Information_Uploder",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Information_Uploder",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        []
+      ]
+    },
+    "Add_Appointment": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ID_Generated_Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancel_Appointment_Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send_Admin_Notification_Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Microsoft SQL": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "convert_to_Human": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asisstant_alert": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Microsoft SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Microsoft SQL1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Microsoft SQL1": {
+      "main": [
+        []
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "c9825b18-b81b-4701-bf1f-c337c2fe74b6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d555bdaff1c8aa58dd235d77c09c03f4b21c9802f27270d4896697641210b8db"
+  },
+  "nodeGroups": [],
+  "id": "xWEPCuxCWVRjA7WP",
+  "tags": [
+    {
+      "updatedAt": "2026-09-25T15:09:58.762Z",
+      "createdAt": "2026-09-25T15:09:58.762Z",
+      "id": "hNCOlhMOTKNjCQUu",
+      "name": "Ai Agent Assistant"
+    },
+    {
+      "updatedAt": "2026-09-25T15:10:11.126Z",
+      "createdAt": "2026-09-25T15:10:11.126Z",
+      "id": "miGk8zJjCY5z3sxh",
+      "name": "CLinc Assistant"
+    }
+  ]
+}
